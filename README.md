@@ -26,7 +26,7 @@ The AWS resources that are defined within this layer are:
 The Call Recording UI will query the secondary DynamoDB table
 
 ## Core
-Deploy the UI, API and the Function required for the application - [Repository Root](./)<br>
+Deploy the UI, API and the Function required for the application - [Repository Root](./src)<br>
 This layer will provide the remaining AWS components:
 
 - Call Recording REACT UI
