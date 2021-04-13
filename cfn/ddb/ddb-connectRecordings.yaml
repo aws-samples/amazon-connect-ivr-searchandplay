@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Resources:
+  connectRecordings:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "sessionId"
+          AttributeType: "S"
+        -
+          AttributeName: "startDateTime"
+          AttributeType: "S"
+        -
+          AttributeName: "cli"
+          AttributeType: "S"
+        -
+          AttributeName: "accountNumber"
+          AttributeType: "S"
+        -
+          AttributeName: "dummykey"
+          AttributeType: "S"
+      KeySchema:
+        -
+          AttributeName: "sessionId"
+          KeyType: "HASH"
+        -
+          AttributeName: "startDateTime"
+          KeyType: "RANGE"
+      ProvisionedThroughput:
+        ReadCapacityUnits: "5"
+        WriteCapacityUnits: "5"
+      TableName: "connectRecordings"
+      GlobalSecondaryIndexes:
+        -
+          IndexName: "telephoneNumber-index"
+          KeySchema:
+            -
+              AttributeName: "cli"
+              KeyType: "HASH"
+            -
+              AttributeName: "startDateTime"
+              KeyType: "RANGE"
+          Projection:
+              ProjectionType: "ALL"
+          ProvisionedThroughput:
+            ReadCapacityUnits: "5"
+            WriteCapacityUnits: "5"
+        -
+          IndexName: "accountNumber-index"
+          KeySchema:
+            -
+              AttributeName: "accountNumber"
+              KeyType: "HASH"
+            -
+              AttributeName: "startDateTime"
+              KeyType: "RANGE"
+          Projection:
+              ProjectionType: "ALL"
+          ProvisionedThroughput:
+            ReadCapacityUnits: "5"
+            WriteCapacityUnits: "5"
+        -
+          IndexName: "key-startDateTime-index"
+          KeySchema:
+            -
+              AttributeName: "dummykey"
+              KeyType: "HASH"
+            -
+              AttributeName: "startDateTime"
+              KeyType: "RANGE"
+          Projection:
+              ProjectionType: "ALL"
+          ProvisionedThroughput:
+            ReadCapacityUnits: "5"
+            WriteCapacityUnits: "5"

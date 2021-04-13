@@ -1,0 +1,66 @@
+{
+    "paths": [
+        {
+            "name": "/recordings",
+            "lambdaFunction": "connectgetreclambda",
+            "privacy": {
+                "private": true,
+                "auth": [
+                    "/POST",
+                    "/GET",
+                    "/PUT",
+                    "/PATCH",
+                    "/DELETE"
+                ]
+            }
+        },
+        {
+            "name": "/url",
+            "lambdaFunction": "connectgeturl",
+            "privacy": {
+                "private": true,
+                "auth": [
+                    "/POST",
+                    "/GET",
+                    "/PUT",
+                    "/PATCH",
+                    "/DELETE"
+                ]
+            }
+        }
+    ],
+    "resourceName": "connectapi",
+    "apiName": "connectapi",
+    "functionArns": [
+        {
+            "lambdaFunction": "connectgetreclambda"
+        },
+        {
+            "lambdaFunction": "connectgeturl"
+        }
+    ],
+    "privacy": {
+        "auth": 2,
+        "unauth": 0,
+        "authRoleName": "connect-console-dev-20190917212029-authRole",
+        "unAuthRoleName": "connect-console-dev-20190917212029-unauthRole"
+    },
+    "dependsOn": [
+        {
+            "category": "function",
+            "resourceName": "connectgetreclambda",
+            "attributes": [
+                "Name",
+                "Arn"
+            ]
+        },
+        {
+            "category": "function",
+            "resourceName": "connectgeturl",
+            "attributes": [
+                "Name",
+                "Arn"
+            ]
+        }
+    ]
+}

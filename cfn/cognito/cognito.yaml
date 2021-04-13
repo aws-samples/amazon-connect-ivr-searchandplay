@@ -1,0 +1,251 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  AWS Cognito Stack with User Pool, Identity Pool, IAM roles (authenticated / unauthenticated), Trust Policies, App client and Domain
+Parameters:
+  pIdentityPoolName:
+    Type: String
+    Default: CallRecordingIDPool
+    Description: Name of the identity pool
+  pUserPoolName:
+    Type: String
+    Default: CallRecordingUsrPool
+    Description: Name of the user pool
+  pDeveloperProviderName:
+    Type: String
+    Default: callrecording-provider
+    Description: Name of the developer provider
+  pUnauthRoleName:
+    Type: String
+    Default: callrecording-UnAuth-Role
+    Description: Unauth role name
+  pAuthRoleName:
+    Type: String
+    Default: callrecording-Auth-Role
+    Description: Auth role name
+  pAppClientName:
+    Type: String
+    Default: callrecording-client-app
+    Description: The app Client Name
+  pUserPoolIDPName:
+    Type: String
+    Default: callrecordingidp
+    Description: The user Pool idp provider name
+  pUserPoolDomainName:
+    Type: String
+    Default: callrecording
+    Description: The user Pool domain name
+  pRegion:
+    Type: String
+    Default: 'ap-southeast-2'
+    Description: The AWS region
+  pCallBackURL:
+    Type: String
+    Default: 'cloudfront url'
+    Description: The Call Back URL to be defined
+  pLogoutUrl:
+    Type: String
+    Default: 'cloudfront url'
+    Description: The Logout URL to be defined
+  pADGroup:
+    Type: String
+    Default: callrecording-users
+    Description: The AD groupo for Cognito Role Mapping
+  pADFSMetadataURL:
+    Type: String
+    Description: The url os the ADFS instance to load the Metadata XML. E.g. https://your.domain.com/FederationMetadata/2007-06/FederationMetadata.xml
+  pRefreshTokenTimeinDays:
+    Type: String
+    Description: The refresh time of a valid token from Cognito
+    Default: 1
+
+Resources:
+
+  rUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AutoVerifiedAttributes:
+        - email
+      MfaConfiguration: "OFF"
+      UserPoolName: !Ref pUserPoolName
+      Schema:
+        - AttributeDataType: String
+          Mutable: true
+          Name: groups
+          Required: false
+          StringAttributeConstraints:
+            MaxLength: "2000"
+      UsernameAttributes:
+        - email
+  
+  rUserPoolClient:
+    Type: "AWS::Cognito::UserPoolClient"
+    DependsOn:
+      - rUserPoolIdP
+    Properties:
+        ClientName: !Ref pAppClientName
+        GenerateSecret: False
+        UserPoolId: !Ref rUserPool
+        AllowedOAuthFlows:
+        - code
+        - implicit
+        AllowedOAuthFlowsUserPoolClient: true
+        AllowedOAuthScopes:
+          - phone
+          - email
+          - openid
+          - profile
+        CallbackURLs:
+        - !Ref pCallBackURL
+        ClientName: Web
+        GenerateSecret: false
+        LogoutURLs:
+          - !Ref pLogoutUrl
+        RefreshTokenValidity: !Ref pRefreshTokenTimeinDays
+        SupportedIdentityProviders:
+          - !Ref pUserPoolIDPName
+        ReadAttributes:
+          - custom:groups
+          - email
+          - family_name
+          - given_name
+          - name
+        WriteAttributes:
+          - custom:groups
+          - email
+          - family_name
+          - given_name
+          - name
+  
+  rCognitoDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Ref pUserPoolDomainName
+      UserPoolId: !Ref rUserPool
+  
+  rUserPoolIdP:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Properties:
+      ProviderName: !Ref pUserPoolIDPName
+      ProviderType: SAML
+      UserPoolId: !Ref rUserPool
+      AttributeMapping:
+        email: email
+        family_name: lastName
+        given_name: firstName
+        name: firstName
+        custom:groups: groups
+      ProviderDetails:
+        MetadataURL: !Ref pADFSMetadataURL
+
+  rIdentityPool:
+    Type: "AWS::Cognito::IdentityPool"
+    Properties:
+      IdentityPoolName: !Ref pIdentityPoolName
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+      - ClientId: !Ref rUserPoolClient
+        ProviderName: !GetAtt rUserPool.ProviderName 
+
+  rUnauthRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: "Allow"
+            Principal:
+                Federated: "cognito-identity.amazonaws.com"
+            Action: "sts:AssumeRoleWithWebIdentity"
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud: !Ref rIdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: "unauthenticated"
+      RoleName: !Ref pUnauthRoleName
+
+  rUnauthRolePolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Effect: "Deny"
+            Action: "execute-api:Invoke"
+            Resource: '*'
+      PolicyName: Cognito-UnAuth-IAM-Policy
+      Roles:
+        - !Ref rUnauthRole
+
+  rAuthRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: "Allow"
+            Principal:
+                Federated: "cognito-identity.amazonaws.com"
+            Action: "sts:AssumeRoleWithWebIdentity"
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud: !Ref rIdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: "authenticated"
+      RoleName: !Ref pAuthRoleName
+
+  rAuthRolePolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Effect: "Allow"
+            Action: "execute-api:Invoke"
+            Resource:
+            - !Join [ "/", [!Join [ ":", [ "arn:aws:execute-api",!Ref 'AWS::Region',!Ref 'AWS::AccountId', '*']], "*/GET/*"]]
+      PolicyName: !Sub Cognito-Auth-IAM-Policy
+      Roles:
+        - !Ref rAuthRole
+
+  rIdentityPoolRoleMapping:
+    Type: "AWS::Cognito::IdentityPoolRoleAttachment"
+    DependsOn: 
+      - rIdentityPool
+      - rUserPool
+      - rUserPoolClient
+      - rAuthRole
+      - rUnauthRole
+    Properties:
+      IdentityPoolId: !Ref rIdentityPool
+      Roles:
+        authenticated: !GetAtt rAuthRole.Arn
+        unauthenticated: !GetAtt rUnauthRole.Arn
+      RoleMappings:
+        "callrecording":
+          IdentityProvider: !Sub cognito-idp.${AWS::Region}.amazonaws.com/${rUserPool}:${rUserPoolClient}
+          AmbiguousRoleResolution: Deny
+          Type: Rules
+          RulesConfiguration:
+            Rules:
+              - Claim: "custom:groups"
+                MatchType: "Equals"
+                RoleARN: !GetAtt rAuthRole.Arn
+                Value: !Ref pADGroup
+
+Outputs:
+  UserPoolId:
+    Value: !Ref rUserPool
+  UserPoolClientName:
+    Value: !Ref rUserPoolClient
+  CognitoDomainID:
+    Value: !Ref rCognitoDomain
+  UserPoolClientId:
+    Value: !Ref rUserPoolClient
+  # UserPoolIdpId:
+  #   Value: !Ref rUserPoolIdP
+  # UserPoolIdpId:
+  #   Value: !Ref rUserPoolIdP
+  IdentityPoolId:
+    Value: !Ref rIdentityPool
+  AuthIAMRole:
+    Value: !Ref rAuthRole
+  UnAuthIAMRole:
+    Value: !Ref rUnauthRole
+   
+   
