@@ -46,6 +46,18 @@
                         }
                     ]
                 },
+		"BucketEncryption": {
+                "ServerSideEncryptionConfiguration": [
+                    {
+                        "ServerSideEncryptionByDefault": {
+                            "SSEAlgorithm": "AES256"
+                        }
+                    }
+                  ]
+            	},
+               "VersioningConfiguration": {
+                "Status": "Enabled"
+                }
                 "AccessControl": "Private",
                 "WebsiteConfiguration": {
                     "IndexDocument": "index.html",
