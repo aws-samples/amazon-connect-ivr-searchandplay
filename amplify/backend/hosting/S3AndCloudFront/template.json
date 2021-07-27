@@ -57,7 +57,7 @@
             	},
                "VersioningConfiguration": {
                 "Status": "Enabled"
-                }
+                },
                 "AccessControl": "Private",
                 "WebsiteConfiguration": {
                     "IndexDocument": "index.html",
